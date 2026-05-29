@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه دریافت کارنامه - موسسه US</title>
+    <title>سامانه هوشمند دریافت کارنامه آنلاین</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -66,14 +66,14 @@
     <label>🏛️ انتخاب موسسه</label>
     <select id="instSelect" onchange="onInstChange()" disabled><option value="">ابتدا موسسه را انتخاب کنید</option></select>
 
-    <label>🎓 انتخاب پایه تحصیلی</label>
-    <select id="levelSelect" onchange="onLevelChange()" disabled><option value="">ابتدا پایه را... </option></select>
+    <label>🎓 انتخاب سطح / کد گروه</label>
+    <select id="levelSelect" onchange="onLevelChange()" disabled><option value="">ابتدا سطح را انتخاب کنید</option></select>
 
-    <label>🧪 انتخاب درس / آزمون</label>
-    <select id="examSelect" onchange="onExamChange()" disabled><option value="">ابتدا آزمون را...</option></select>
+    <label>🧪 انتخاب عنوان آزمون</label>
+    <select id="examSelect" onchange="onExamChange()" disabled><option value="">ابتدا آزمون را انتخاب کنید</option></select>
 
     <label>👤 نام و نام خانوادگی دانش‌آموز</label>
-    <select id="studentSelect" disabled><option value="">ابتدا دانش‌آموز را...</option></select>
+    <select id="studentSelect" disabled><option value="">ابتدا دانش‌آموز را انتخاب کنید</option></select>
 
     <label>🔐 رمز عبور شخصی</label>
     <input type="password" id="studentPassword" placeholder="رمز عبور ثبت شده در پاسخبرگ">
@@ -87,14 +87,16 @@
 
 <script>
     const OUTER_PASSWORD = "OuterSecret@2024";
-    // آدرس دامنه شما در files.ir (این را به عنوان پیش‌فرض ست کردم، بعداً اگر مایل بودی تغییر بده)
-    const CLOUD_BASE_URL = "https://nima-api.files.ir/reports/"; 
+    
+    // 🎯 فیکس ابدی: آدرس نسبی هوشمند؛ فایل دیتابیس و پوشه‌ها درست در کنار همین سایت قرار دارند
+    const CLOUD_BASE_URL = "./"; 
     let dbData = {};
 
     async function loadReportsList() {
         try {
+            // خواندن خودکار فایل لیست از کنار خودِ سایت در گیت‌هاب
             const response = await fetch(CLOUD_BASE_URL + 'reports_list.json');
-            if (!response.ok) throw new Error("فایل دیتابیس کارنامه‌ها روی سرور ابری یافت نشد.");
+            if (!response.ok) throw new Error("فایل دیتابیس کارنامه‌ها (reports_list.json) یافت نشد. مطمئن شوید آن را در کنار index.html آپلود کرده‌اید.");
             dbData = await response.json();
             
             const dateSelect = document.getElementById('dateSelect');
@@ -105,7 +107,7 @@
                 dateSelect.appendChild(option);
             });
         } catch (error) {
-            alert("خطا در ارتباط با سرور ابری: " + error.message);
+            alert("خطا در بارگذاری اولیه: " + error.message);
         }
     }
 
@@ -162,7 +164,8 @@
         studentSelect.disabled = false;
         dbData[date][inst][lvl][exam].forEach(stu => {
             let option = document.createElement('option');
-            option.value = stu.file_name; option.textContent = stu.name;
+            option.value = stu.file_name; // آدرس‌دهی عمیق پایتون جدید برای این فایل زیپ
+            option.textContent = stu.name;
             studentSelect.appendChild(option);
         });
     }
@@ -176,40 +179,43 @@
     }
 
     async function fetchAndUnlockReport() {
-        const fileName = document.getElementById('studentSelect').value;
+        const fileRelativePath = document.getElementById('studentSelect').value;
         const password = document.getElementById('studentPassword').value.trim();
-        const date = document.getElementById('dateSelect').value;
         const reportFrame = document.getElementById('reportFrame');
 
-        if (!fileName || !password) {
+        if (!fileRelativePath || !password) {
             alert("لطفاً تمامی گزینه‌ها و رمز عبور را وارد کنید.");
             return;
         }
 
-        const fileUrl = `${CLOUD_BASE_URL}${date}/${fileName}`;
+        // ساخت آدرس مستقیم بر اساس ساختار پایتون جدید و روت نسبی گیت‌هاب
+        const fileUrl = `${CLOUD_BASE_URL}${fileRelativePath}`;
 
         try {
             const response = await fetch(fileUrl);
-            if (!response.ok) throw new Error("فایل کارنامه پیدا نشد.");
+            if (!response.ok) throw new Error("فایل کارنامه پیدا نشد. ممکن است آپلود پوشه تاریخ در گیت‌هاب ناقص باشد.");
             const arrayBuffer = await response.arrayBuffer();
 
+            // باز کردن لایه اول (Outer) با پسورد ثابت سیستم
             const zip = await JSZip.loadAsync(arrayBuffer);
             const innerZipFile = Object.keys(zip.files).find(f => f.endsWith('.zip'));
             const innerZipBuffer = await zip.files[innerZipFile].async("arraybuffer");
 
+            // باز کردن لایه دوم (Inner) با پسورد اختصاصی دانش‌آموز
             const innerZip = await JSZip.loadAsync(innerZipBuffer);
             const htmlFile = innerZip.file("index.html");
             
-            if (!htmlFile) throw new Error("محتوای کارنامه معتبر نیست.");
+            if (!htmlFile) throw new Error("محتوای درون کارنامه معتبر نیست.");
             const htmlContent = await htmlFile.async("string");
 
+            // رندر بدون دردسر و کاملاً امن در آی‌فریم زیر صفحه
             reportFrame.style.display = "block";
             const doc = reportFrame.contentWindow.document;
             doc.open(); doc.write(htmlContent); doc.close();
             reportFrame.scrollIntoView({ behavior: 'smooth' });
 
         } catch (error) {
-            alert("خطا در رمزگشایی کارنامه! احتمالاً رمز عبور اشتباه است.");
+            alert("خطا در رمزگشایی کارنامه! احتمالاً رمز عبور اشتباه است یا فایل هنوز کامل آپلود نشده است.");
         }
     }
 
