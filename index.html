@@ -11,6 +11,7 @@
             background: linear-gradient(135deg, #f0fdf4 0%, #e6f4ea 100%);
             font-family: 'Tahoma', 'Segoe UI', sans-serif;
             padding: 30px 20px;
+            direction: rtl;
         }
         .container {
             max-width: 650px;
@@ -60,19 +61,28 @@
 
     <div id="reportPanel" class="panel active">
         <label>🗓️ انتخاب تاریخ آزمون</label>
-        <select id="dateSelect" onchange="onDateChange()"><option value="">ابتدا تاریخ را انتخاب کنید</option></select>
+        <select id="dateSelect" onchange="onDateChange()">
+            <option value="">تاریخ آزمون را انتخاب کنید</option>
+        </select>
 
         <label>🏛️ انتخاب موسسه</label>
-        <select id="instSelect" onchange="onInstChange()" disabled><option value="">ابتدا موسسه را انتخاب کنید</option></select>
-
-        <label>🎓 انتخاب سطح / کد گروه</label>
-        <select id="levelSelect" onchange="onLevelChange()" disabled><option value="">ابتدا سطح را انتخاب کنید</option></select>
+        <select id="instSelect" onchange="onInstChange()" disabled>
+            <option value="">موسسه را انتخاب کنید</option>
+        </select>
 
         <label>🧪 انتخاب عنوان آزمون</label>
-        <select id="examSelect" onchange="onExamChange()" disabled><option value="">ابتدا آزمون را انتخاب کنید</option></select>
+        <select id="examSelect" onchange="onExamChange()" disabled>
+            <option value="">عنوان آزمون را انتخاب کنید</option>
+        </select>
 
-        <label>👤 نام و نام خانوادگی دانش‌آموز</label>
-        <select id="studentSelect" disabled><option value="">ابتدا دانش‌آموز را انتخاب کنید</option></select>
+        <label>🎓 انتخاب سطح / کد گروه</label>
+        <select id="levelSelect" onchange="onLevelChange()" disabled>
+            <option value="">سطح / کد گروه را انتخاب کنید</option>
+        </select>
+
+        <label>👤 نام و نام خانوادگی داوطلب</label>
+        <input type="text" id="studentSelect" list="studentOptions" placeholder="نام خود را وارد کنید" disabled>
+        <datalist id="studentOptions"></datalist>
 
         <label>🔐 رمز عبور شخصی</label>
         <input type="password" id="studentPassword" placeholder="رمز عبور ثبت شده در پاسخبرگ">
@@ -82,13 +92,19 @@
 
     <div id="formPanel" class="panel">
         <label>🗓️ انتخاب تاریخ پاسخبرگ</label>
-        <select id="fDateSelect" onchange="onFormDateChange()"><option value="">ابتدا تاریخ را انتخاب کنید</option></select>
+        <select id="fDateSelect" onchange="onFormDateChange()">
+            <option value="">تاریخ پاسخبرگ را انتخاب کنید</option>
+        </select>
 
-        <label>🏛️ انتخاب موسسه / ارگان</label>
-        <select id="fInstSelect" onchange="onFormInstChange()" disabled><option value="">ابتدا موسسه را انتخاب کنید</option></select>
+        <label>🏛️ انتخاب موسسه</label>
+        <select id="fInstSelect" onchange="onFormInstChange()" disabled>
+            <option value="">موسسه را انتخاب کنید</option>
+        </select>
 
-        <label>🧪 انتخاب عنوان پاسخبرگ (فایل HTML)</label>
-        <select id="fExamSelect" disabled><option value="">ابتدا پاسخبرگ را انتخاب کنید</option></select>
+        <label>🧪 انتخاب عنوان پاسخبرگ</label>
+        <select id="fExamSelect" disabled>
+            <option value="">عنوان پاسخبرگ را انتخاب کنید</option>
+        </select>
 
         <button class="btn-orange" onclick="loadExternalPasokhbarg()">📝 باز کردن و شروع پاسخگویی</button>
     </div>
@@ -99,14 +115,13 @@
 <iframe id="displayFrame"></iframe>
 
 <script>
-    const OUTER_PASSWORD = "OuterSecret@2024";
     const CLOUD_BASE_URL = "./"; 
     let reportsDB = {};
     let formsDB = {};
+    let currentLevelStudents = []; // آرایه کمکی نگهداری لیست دانش‌آموزان بخش فعال
 
     // لود همزمان هر دو دیتابیس به محض باز شدن سایت
     async function initSystem() {
-        // ۱. بارگذاری دیتابیس کارنامه‌ها
         try {
             const res = await fetch(CLOUD_BASE_URL + 'reports_list.json');
             if (res.ok) {
@@ -115,7 +130,6 @@
             }
         } catch(e) { console.log("در انتظار دیتابیس کارنامه‌ها..."); }
 
-        // ۲. بارگذاری دیتابیس مستقل پاسخبرگ‌ها
         try {
             const res = await fetch(CLOUD_BASE_URL + 'forms_list.json');
             if (res.ok) {
@@ -127,9 +141,10 @@
 
     function populateDateSelect(db, selectId) {
         const select = document.getElementById(selectId);
-        Object.keys(db).forEach(date => {
+        Object.keys(db).sort().forEach(date => {
             let option = document.createElement('option');
-            option.value = date; option.textContent = date.replace(/_/g, '.');
+            option.value = date; 
+            option.textContent = date.replace(/_/g, '.');
             select.appendChild(option);
         });
     }
@@ -151,7 +166,7 @@
         if (!date || !formsDB[date]) return;
         const select = document.getElementById('fInstSelect');
         select.disabled = false;
-        Object.keys(formsDB[date]).forEach(inst => {
+        Object.keys(formsDB[date]).sort().forEach(inst => {
             let option = document.createElement('option');
             option.value = inst; option.textContent = inst.replace(/_/g, ' ');
             select.appendChild(option);
@@ -165,9 +180,9 @@
         if (!inst || !formsDB[date][inst]) return;
         const select = document.getElementById('fExamSelect');
         select.disabled = false;
-        Object.keys(formsDB[date][inst]).forEach(exam => {
+        Object.keys(formsDB[date][inst]).sort().forEach(exam => {
             let option = document.createElement('option');
-            option.value = formsDB[date][inst][exam]; // جاده یا همان آدرس وب فایل html
+            option.value = formsDB[date][inst][exam]; 
             option.textContent = exam.replace(/_/g, ' ');
             select.appendChild(option);
         });
@@ -184,12 +199,10 @@
         }
 
         try {
-            // صدا زدن مستقیم فایل HTML از درون پوشه pasokhbarg گیت‌هاب شما
             const response = await fetch(CLOUD_BASE_URL + htmlRelativePath);
             if (!response.ok) throw new Error("فایل پاسخبرگ فیزیکی پیدا نشد.");
             const htmlContent = await response.text();
 
-            // بزرگ کردن عرض صفحه برای راحتی کار با پاسخبرگ و رندر آن در آی‌فریم
             container.style.maxWidth = "1000px";
             frame.style.display = "block";
             
@@ -202,13 +215,13 @@
         }
     }
 
-    // ================= منطق کارنامه‌ها (بدون تغییر) =================
+    // ================= منطق زنجیره‌ای کارنامه‌ها =================
     function onDateChange() {
         const date = document.getElementById('dateSelect').value;
-        resetSelects(['instSelect', 'levelSelect', 'examSelect', 'studentSelect']);
+        resetSelects(['instSelect', 'examSelect', 'levelSelect', 'studentSelect']);
         if (!date || !reportsDB[date]) return;
         const select = document.getElementById('instSelect'); select.disabled = false;
-        Object.keys(reportsDB[date]).forEach(inst => {
+        Object.keys(reportsDB[date]).sort().forEach(inst => {
             let option = document.createElement('option'); option.value = inst; option.textContent = inst; select.appendChild(option);
         });
     }
@@ -216,22 +229,10 @@
     function onInstChange() {
         const date = document.getElementById('dateSelect').value;
         const inst = document.getElementById('instSelect').value;
-        resetSelects(['levelSelect', 'examSelect', 'studentSelect']);
-        if (!inst) return;
-        const select = document.getElementById('levelSelect'); select.disabled = false;
-        Object.keys(reportsDB[date][inst]).forEach(lvl => {
-            let option = document.createElement('option'); option.value = lvl; option.textContent = lvl; select.appendChild(option);
-        });
-    }
-
-    function onLevelChange() {
-        const date = document.getElementById('dateSelect').value;
-        const inst = document.getElementById('instSelect').value;
-        const lvl = document.getElementById('levelSelect').value;
-        resetSelects(['examSelect', 'studentSelect']);
-        if (!lvl) return;
+        resetSelects(['examSelect', 'levelSelect', 'studentSelect']);
+        if (!inst || !reportsDB[date][inst]) return;
         const select = document.getElementById('examSelect'); select.disabled = false;
-        Object.keys(reportsDB[date][inst][lvl]).forEach(exam => {
+        Object.keys(reportsDB[date][inst]).sort().forEach(exam => {
             let option = document.createElement('option'); option.value = exam; option.textContent = exam; select.appendChild(option);
         });
     }
@@ -239,56 +240,120 @@
     function onExamChange() {
         const date = document.getElementById('dateSelect').value;
         const inst = document.getElementById('instSelect').value;
-        const lvl = document.getElementById('levelSelect').value;
         const exam = document.getElementById('examSelect').value;
-        resetSelects(['studentSelect']);
-        if (!exam) return;
-        const select = document.getElementById('studentSelect'); select.disabled = false;
-        reportsDB[date][inst][lvl][exam].forEach(stu => {
-            let option = document.createElement('option'); option.value = stu.file_name; option.textContent = stu.name; select.appendChild(option);
+        resetSelects(['levelSelect', 'studentSelect']);
+        if (!exam || !reportsDB[date][inst][exam]) return;
+        const select = document.getElementById('levelSelect'); select.disabled = false;
+        Object.keys(reportsDB[date][inst][exam]).sort().forEach(lvl => {
+            let option = document.createElement('option'); option.value = lvl; option.textContent = lvl; select.appendChild(option);
+        });
+    }
+
+    function onLevelChange() {
+        const date = document.getElementById('dateSelect').value;
+        const inst = document.getElementById('instSelect').value;
+        const exam = document.getElementById('examSelect').value;
+        const lvl = document.getElementById('levelSelect').value;
+        
+        const inputField = document.getElementById('studentSelect');
+        const dataList = document.getElementById('studentOptions');
+        
+        inputField.value = "";
+        dataList.innerHTML = "";
+        inputField.disabled = true;
+        currentLevelStudents = [];
+
+        if (!lvl || !reportsDB[date][inst][exam][lvl]) return;
+        
+        inputField.disabled = false;
+        inputField.placeholder = "نام خود را تایپ یا انتخاب کنید...";
+        
+        // کلون کردن آرایه داوطلبان جهت سورت الفبایی ارگانیک فارسی
+        currentLevelStudents = [...reportsDB[date][inst][exam][lvl]];
+        currentLevelStudents.sort((a, b) => a.name.localeCompare(b.name, 'fa'));
+        
+        currentLevelStudents.forEach(stu => {
+            let option = document.createElement('option');
+            option.value = stu.name;
+            dataList.appendChild(option);
         });
     }
 
     function resetSelects(ids) {
         ids.forEach(id => {
             const select = document.getElementById(id);
-            select.innerHTML = `<option value="">انتخاب کنید...</option>`;
-            select.disabled = true;
+            let defaultText = "انتخاب کنید...";
+            if (id === 'instSelect') defaultText = "تاریخ را انتخاب کنید";
+            else if (id === 'examSelect') defaultText = "موسسه را انتخاب کنید";
+            else if (id === 'levelSelect') defaultText = "آزمون را انتخاب کنید";
+            
+            if (id === 'studentSelect') {
+                select.value = "";
+                select.placeholder = "سطح را انتخاب کنید";
+                select.disabled = true;
+                document.getElementById('studentOptions').innerHTML = "";
+                currentLevelStudents = [];
+            } else {
+                select.innerHTML = `<option value="">${defaultText}</option>`;
+                select.disabled = true;
+            }
         });
     }
 
+    // ================= منطق آنزیپ مستقیم کلاینت با پسورد داوطلب =================
     async function fetchAndUnlockReport() {
-        const fileRelativePath = document.getElementById('studentSelect').value;
+        const studentName = document.getElementById('studentSelect').value.trim();
         const password = document.getElementById('studentPassword').value.trim();
         const frame = document.getElementById('displayFrame');
         const container = document.getElementById('mainContainer');
 
-        if (!fileRelativePath || !password) {
-            alert("لطفاً تمامی گزینه‌ها و رمز عبور را وارد کنید.");
+        if (!studentName) { alert("لطفاً نام دانش‌آموز را انتخاب یا تایپ کنید."); return; }
+        if (!password) { alert("لطفاً رمز عبور شخصی خود را وارد کنید."); return; }
+
+        // پیدا کردن آبجکت داوطلب برای استخراج فیلد file_name
+        const targetStudent = currentLevelStudents.find(stu => stu.name === studentName);
+        if (!targetStudent) {
+            alert("❌ نام دانش‌آموز وارد شده یافت نشد. لطفاً دقیقاً از لیست پیشنهادی انتخاب کنید.");
             return;
         }
+
+        const fileRelativePath = targetStudent.file_name;
 
         try {
             const response = await fetch(CLOUD_BASE_URL + fileRelativePath);
             if (!response.ok) throw new Error("فایل کارنامه یافت نشد.");
             const arrayBuffer = await response.arrayBuffer();
 
-            const zip = await JSZip.loadAsync(arrayBuffer);
-            const innerZipFile = Object.keys(zip.files).find(f => f.endsWith('.zip'));
-            const innerZipBuffer = await zip.files[innerZipFile].async("arraybuffer");
+            // آنزیپ مستقیم پکیج سنتی قفل شده لوکال با استفاده از پسورد ورودی دانش‌آموز
+            const zip = await JSZip.loadAsync(arrayBuffer, {
+                decodeFileName: function (bytes) {
+                    return new TextDecoder("utf-8").decode(bytes);
+                }
+            });
+            
+            let indexFile = zip.file("index.html");
+            if (!indexFile) {
+                const files = Object.keys(zip.files);
+                const htmlKey = files.find(f => f.endsWith('index.html'));
+                if (htmlKey) indexFile = zip.file(htmlKey);
+            }
+            
+            if (!indexFile) throw new Error("محتوای کارنامه معتبر نیست.");
+            
+            // باز کردن فیزیکی دیتای متنی رمزگذاری شده کلاسیک
+            const htmlContent = await indexFile.async("string", password);
 
-            const innerZip = await JSZip.loadAsync(innerZipBuffer);
-            const htmlFile = innerZip.file("index.html");
-            if (!htmlFile) throw new Error("محتوای کارنامه معتبر نیست.");
-            const htmlContent = await htmlFile.async("string");
-
+            // عریض کردن بدنه سایت و رندر نهایی در آی‌فریم
             container.style.maxWidth = "1000px";
             frame.style.display = "block";
             const doc = frame.contentWindow.document;
             doc.open(); doc.write(htmlContent); doc.close();
             frame.scrollIntoView({ behavior: 'smooth' });
+            
         } catch (error) {
-            alert("خطا در رمزگشایی کارنامه! احتمالاً رمز عبور اشتباه است.");
+            alert("🔒 خطا در رمزگشایی کارنامه! احتمالاً رمز عبور اشتباه است یا فایل آسیب دیده است.");
+            frame.style.display = "none";
+            container.style.maxWidth = "650px";
         }
     }
 
